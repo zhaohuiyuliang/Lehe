@@ -4,6 +4,8 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -23,7 +25,9 @@ import com.xiangsheng.dao.TablePeopleProfile;
 import com.xiangsheng.dao.model.People;
 import com.xiangsheng.runtimepermissions.PermissionsManager;
 import com.xiangsheng.runtimepermissions.PermissionsResultAction;
+import com.xiangsheng.tool.FileCopy;
 
+import java.io.File;
 import java.util.List;
 
 
@@ -42,6 +46,7 @@ public class ItemListPeopleActivity extends AppCompatActivity {
      * device.
      */
     private boolean mTwoPane;
+    private Handle handle = new Handle();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,11 +65,6 @@ public class ItemListPeopleActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
-
-        View recyclerView = findViewById(R.id.item_list);
-        assert recyclerView != null;
-        setupRecyclerView((RecyclerView) recyclerView);
-
         if (findViewById(R.id.item_detail_container) != null) {
             // The detail container view will be present only in the
             // large-screen layouts (res/values-w900dp).
@@ -73,6 +73,33 @@ public class ItemListPeopleActivity extends AppCompatActivity {
             mTwoPane = true;
         }
         requestPermissions();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String DB_PATH = "/data/data/com.xiangsheng/databases/";
+                String DB_NAME = "XiangSheng.db";
+                if ((new File(DB_PATH + DB_NAME)).exists() == false) {
+                    String assetsPath = "XiangSheng.db";
+                    File f = new File(DB_PATH);
+                    if (f.exists() == false) {
+                        f.mkdir();
+                    }
+                    FileCopy.fileCopyFromAssetsTo(assetsPath, DB_PATH + DB_NAME);
+                } else {
+                    try {
+                        Thread.sleep(1000L);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                handle.sendEmptyMessage(1);
+            }
+        }).start();
     }
 
     private void setupRecyclerView(@NonNull RecyclerView recyclerView) {
@@ -91,12 +118,12 @@ public class ItemListPeopleActivity extends AppCompatActivity {
                 new PermissionsResultAction() {
                     @Override
                     public void onGranted() {
-                        TablePeopleProfile tablePeopleProfile = ControlApplication.getApplication().getDaoManager().getTablePeopleProfile();
-                        List<People> radicalsList = tablePeopleProfile.queryAllData();
-                        if (radicalsList == null || radicalsList.isEmpty()) {
-                            ControlApplication.getApplication().getController().requestPeopleProfile();
-                        } else {
-                        }
+//                        TablePeopleProfile tablePeopleProfile = ControlApplication.getApplication().getDaoManager().getTablePeopleProfile();
+//                        List<People> radicalsList = tablePeopleProfile.queryAllData();
+//                        if (radicalsList == null || radicalsList.isEmpty()) {
+//                            ControlApplication.getApplication().getController().requestPeopleProfile();
+//                        } else {
+//                        }
                     }
 
                     @Override
@@ -105,6 +132,22 @@ public class ItemListPeopleActivity extends AppCompatActivity {
                 });
     }
 
+    class Handle extends Handler {
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case 1: {
+                    View recyclerView = findViewById(R.id.item_list);
+                    assert recyclerView != null;
+                    setupRecyclerView((RecyclerView) recyclerView);
+                }
+                break;
+                default:
+                    break;
+            }
+        }
+    }
 
     public class SimpleItemRecyclerViewAdapter
             extends RecyclerView.Adapter<SimpleItemRecyclerViewAdapter.ViewHolder> {
